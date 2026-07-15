@@ -125,6 +125,27 @@
             color: #cbd5e1;
             font-size: 14px;
         }
+        .strategy-template-box {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 14px 16px;
+            border-radius: 10px;
+            background-color: #111827;
+            border: 1px solid #334155;
+        }
+        .strategy-template-box label {
+            font-size: 13px;
+            color: #94a3b8;
+        }
+        .strategy-template-select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            background-color: #1e293b;
+            color: #e2e8f0;
+        }
         .strategy-list {
             flex: 1;
             overflow-y: auto;
@@ -238,6 +259,14 @@
                     <span id="strategy-summary">Nessuna opzione aggiunta</span>
                 </div>
             </div>
+            <div class="strategy-template-box">
+                <label for="strategy-preset">Strategia predefinita</label>
+                <select id="strategy-preset" class="strategy-template-select">
+                    <option value="">Seleziona una strategia...</option>
+                    <option value="ironCondor">Iron Condor</option>
+                    <option value="ironButterfly">Iron Butterfly</option>
+                </select>
+            </div>
             <div id="strategy-display" class="strategy-list">
                 <div class="empty-state">Nessuna opzione aggiunta. Usa i controlli a destra per iniziare.</div>
             </div>
@@ -260,14 +289,14 @@
                     <button id="sellCall" style="flex: 1;">Vendi CALL</button>
                 </div>
                 
-                <hr style="margin: 15px 0; border: none; border-top: 1px solid #ddd;">
+                <hr style="margin: 15px 0; border: none; border-top: 1px solid #334155;">
                 
                 <button id="clearAll" class="danger" style="margin-bottom: 15px;">Cancella Tutto</button>
                 <button id="openOptionStrat" class="primary" style="margin-top: auto;">Apri su OptionStrat</button>
             </div>
             
-            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
-                <h4 style="font-size: 12px; color: #666;">URL Preview</h4>
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #334155;">
+                <h4 style="font-size: 12px; color: #94a3b8;">URL Preview</h4>
                 <div class="url-box" id="url-preview">-</div>
             </div>
         </div>
@@ -281,6 +310,7 @@
         document.getElementById('sellPut').addEventListener('click', () => addOption('Vendi', 'PUT'));
         document.getElementById('buyCall').addEventListener('click', () => addOption('Compra', 'CALL'));
         document.getElementById('sellCall').addEventListener('click', () => addOption('Vendi', 'CALL'));
+        document.getElementById('strategy-preset').addEventListener('change', (event) => loadPresetStrategy(event.target.value));
         document.getElementById('openOptionStrat').addEventListener('click', openOptionStrat);
         document.getElementById('clearAll').addEventListener('click', clearAll);
 
@@ -333,6 +363,44 @@
                 optionsList = [];
                 updateDisplay();
             }
+        }
+
+        function loadPresetStrategy(presetKey) {
+            if (!presetKey) return;
+
+            const ticker = document.getElementById('ticker').value.trim().toUpperCase();
+            const expiration = document.getElementById('expiration').value.trim();
+            if (!ticker || !expiration) {
+                alert('Ticker e scadenza devono essere impostati prima di caricare una strategia.');
+                document.getElementById('strategy-preset').value = '';
+                return;
+            }
+
+            const rawStrike = parseInt(document.getElementById('strike').value.trim(), 10);
+            const centerStrike = Number.isFinite(rawStrike) ? rawStrike : 150;
+
+            const presets = {
+                ironCondor: [
+                    { action: 'Compra', type: 'PUT', strike: centerStrike - 40 },
+                    { action: 'Vendi', type: 'PUT', strike: centerStrike - 20 },
+                    { action: 'Vendi', type: 'CALL', strike: centerStrike + 20 },
+                    { action: 'Compra', type: 'CALL', strike: centerStrike + 40 }
+                ],
+                ironButterfly: [
+                    { action: 'Compra', type: 'PUT', strike: centerStrike - 20 },
+                    { action: 'Vendi', type: 'PUT', strike: centerStrike },
+                    { action: 'Vendi', type: 'CALL', strike: centerStrike },
+                    { action: 'Compra', type: 'CALL', strike: centerStrike + 20 }
+                ]
+            };
+
+            optionsList = presets[presetKey].map((item) => ({
+                ...item,
+                ticker,
+                expiration,
+                price: null
+            }));
+            updateDisplay();
         }
 
         function updateDisplay() {
