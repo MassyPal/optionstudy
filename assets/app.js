@@ -21,15 +21,15 @@ function addOption(action, type) {
     const expiration = document.getElementById('expiration').value.trim();
     const strike = document.getElementById('strike').value.trim();
     const price = document.getElementById('price').value.trim();
+    const expirationCode = formatDateToYYMMDD(expiration);
 
     if (!ticker || !expiration || !strike) {
         alert('Per favore, compila ticker, scadenza e strike.');
         return;
     }
 
-    // Validazione formato scadenza YYMMDD
-    if (!/^\d{6}$/.test(expiration)) {
-        alert('Scadenza deve essere in formato YYMMDD (es. 260430)');
+    if (!expirationCode) {
+        alert('Scadenza deve essere una data valida. Usa il selettore calendario.');
         return;
     }
 
@@ -37,7 +37,7 @@ function addOption(action, type) {
         action: action,
         type: type,
         ticker: ticker.toUpperCase(),
-        expiration: expiration,
+        expiration: expirationCode,
         strike: strike,
         price: price || null
     };
@@ -72,8 +72,9 @@ function loadPresetStrategy(presetKey) {
 
     const ticker = document.getElementById('ticker').value.trim().toUpperCase();
     const expiration = document.getElementById('expiration').value.trim();
-    if (!ticker || !expiration) {
-        alert('Ticker e scadenza devono essere impostati prima di caricare una strategia.');
+    const expirationCode = formatDateToYYMMDD(expiration);
+    if (!ticker || !expiration || !expirationCode) {
+        alert('Ticker e scadenza devono essere impostati prima di caricare una strategia. Utilizza il selettore calendario per la scadenza.');
         document.getElementById('strategy-preset').value = '';
         return;
     }
@@ -115,7 +116,7 @@ function loadPresetStrategy(presetKey) {
     optionsList = presets[presetKey].map((item) => ({
         ...item,
         ticker,
-        expiration,
+        expiration: expirationCode,
         price: null
     }));
     updateDisplay();
@@ -153,6 +154,7 @@ function updateDisplay() {
                 ${optionsList.map((option, index) => {
                     const priceValue = option.price ? option.price : '';
                     const rowClass = option.type === 'PUT' ? 'put' : 'call';
+                    const expirationDate = formatYYMMDDToDate(option.expiration);
                     return `
                         <tr class="${rowClass}">
                             <td>
@@ -166,7 +168,7 @@ function updateDisplay() {
                                 </select>
                             </td>
                             <td><input type="text" value="${option.ticker}" onchange="updateOptionField(${index}, 'ticker', this.value)"></td>
-                            <td><input type="text" value="${option.expiration}" onchange="updateOptionField(${index}, 'expiration', this.value)"></td>
+                            <td><input type="date" value="${expirationDate}" onchange="updateOptionField(${index}, 'expiration', this.value)"></td>
                             <td><input type="text" value="${option.strike}" onchange="updateOptionField(${index}, 'strike', this.value)"></td>
                             <td><input type="text" value="${priceValue}" onchange="updateOptionField(${index}, 'price', this.value)"></td>
                             <td class="actions"><button class="strategy-remove" onclick="removeOption(${index})">×</button></td>
@@ -196,11 +198,29 @@ function buildOptionStratURL() {
     return `https://optionstrat.com/build/custom/${ticker}/${encodedOptionsString}`;
 }
 
+function formatDateToYYMMDD(dateString) {
+    if (!dateString || !/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return '';
+    const [year, month, day] = dateString.split('-');
+    return `${year.slice(-2)}${month}${day}`;
+}
+
+function formatYYMMDDToDate(expiration) {
+    if (!/^\d{6}$/.test(expiration)) return '';
+    const year = `20${expiration.slice(0, 2)}`;
+    const month = expiration.slice(2, 4);
+    const day = expiration.slice(4, 6);
+    return `${year}-${month}-${day}`;
+}
+
 function updateOptionField(index, field, value) {
     const option = optionsList[index];
     if (!option) return;
 
-    const normalizedValue = field === 'ticker' ? value.toUpperCase() : value;
+    let normalizedValue = field === 'ticker' ? value.toUpperCase() : value;
+    if (field === 'expiration') {
+        normalizedValue = formatDateToYYMMDD(value) || value;
+    }
+
     option[field] = normalizedValue;
     updateDisplay();
 }
@@ -222,7 +242,17 @@ function getTodayExpiration() {
     return `${year}${month}${day}`;
 }
 
+function getTodayISO() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 window.addEventListener('load', () => {
+    const expirationInput = document.getElementById('expiration');
     document.getElementById('ticker').focus();
-    document.getElementById('expiration').value = getTodayExpiration();
+    expirationInput.value = getTodayISO();
+    expirationInput.min = getTodayISO();
 });
